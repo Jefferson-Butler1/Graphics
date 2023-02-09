@@ -1,0 +1,328 @@
+#include "constants.c"
+#include "tools.c"
+#include "threeDeeDrawingMethods.c"
+
+// read the data from multiple xyz files and display any of the objects
+
+#define H 45
+#define numPoints numpoints
+
+double color[][3] = {{1,0,0},
+		     {.4,.3,.2},
+		     {1,1,1}};
+
+double lightLoc[3] = {10,10,0};
+/**
+drawing and moving variables
+**/
+
+int numObjects ;
+int numpoints [MAXOBJS] ;
+int numpolys [MAXOBJS] ;
+int concavity[MAXOBJS];
+
+double x[MAXOBJS][MAXPTS] ;
+double y[MAXOBJS][MAXPTS] ;
+double z[MAXOBJS][MAXPTS] ;
+
+int psize[MAXOBJS][MAXPOLYS] ;
+int con[MAXOBJS][MAXPOLYS][20] ;
+double red[MAXOBJS][MAXPOLYS],
+  grn[MAXOBJS][MAXPOLYS],
+  blu[MAXOBJS][MAXPOLYS] ;
+double centers[MAXOBJS][3];
+
+int read_object(FILE *f,int index)
+{
+  int i,j,k ;
+    // point info
+    fscanf(f,"%d",&numpoints[index]) ;
+    if (numpoints[index] >= MAXPTS) {
+      // need an extra for object centering
+      printf("MAXPTS = %d :  exceeded.\n",MAXPTS) ;
+      exit(1) ;
+    }
+    for (i = 0 ; i < numpoints[index] ; i++) {
+      fscanf(f,"%lf %lf %lf",&x[index][i],&y[index][i], &z[index][i]) ;
+    }
+    // connectivity info
+    fscanf(f,"%d",&numpolys[index]) ;
+    if (numpolys[index] > MAXPOLYS) {
+      printf("MAXPOLYS = %d :  exceeded.\n",MAXPOLYS) ;
+      exit(1) ;
+    }
+    k = 0 ;
+    for (i = 0 ; i < numpolys[index] ; i++) {
+      fscanf(f,"%d",&psize[index][i]) ;
+      for (j = 0 ; j < psize[index][i] ; j++) {
+        fscanf(f,"%d",&con[index][i][j]) ;
+      } // end for j
+    } // end for i
+    double avgX, avgY, avgZ;
+    avgX=avgY=avgZ=0;
+    for(int i = 0; i<numPoints[index]; i++){
+      avgX += x[index][i];
+      avgY += y[index][i];
+      avgZ += z[index][i];
+    }
+    x[index][numPoints[index]] = centers[index][0] = avgX/numPoints[index];
+    y[index][numPoints[index]] = centers[index][1] = avgY/numPoints[index];
+    z[index][numPoints[index]] = centers[index][2] = avgZ/numPoints[index];
+    return 1;    
+}
+
+int drawAllObjects (int signal[], Bool painters, double hither){
+  printf("hither: %lf\n", hither);
+
+  G_rgb(0,0,0);
+  G_clear();
+  int numPolys;
+  if(painters){
+    double allPolys[59000][3];
+    numPolys = getAllPolyPoints(allPolys, x, y, z,
+				numpolys, psize, con, numObjects);
+    paintersAlgorithm(allPolys, numPolys, signal,
+		      x, y, z, psize, con, color,
+		      lightLoc, centers,
+		      hither);
+    return 1;
+  }
+  else{
+    for(int i = 0; i < numObjects; i++){
+      drawSingleObject(i,signal[i], x, y, z,numpolys,
+		       psize, con, color, lightLoc, centers);
+    }
+    return 1;
+  }
+  return 0;
+}
+
+int processInput(int argc, char ** argv){
+  
+  FILE *fin ;
+  char fname[100] ;
+  
+  if(argc==1){
+    printf("Please specify objects to draw and run again \n(add XYZ files to end of ./ call)\n");
+    exit(1);
+  }
+  else{
+    numObjects = argc - 1 ;
+    for(int i = 0; i<numObjects; i++){
+      concavity[i] = 1;
+
+      fin = fopen(argv[i+1],"r") ;
+      if (fin == NULL) {
+	printf("can't read file, %s\n",fname) ;
+	i--;
+	continue;
+      }
+      printf("read file %d from Command Line \n", i+1);
+      read_object(fin,i) ;
+      //boundObject(i-1);
+    }
+      
+  }
+  return 0; 
+}
+
+int main (int argc, char **argv)
+{
+  vectorInvert(lightLoc, lightLoc);
+
+  // lots of stuff here ....
+  initGraphics(800,800);
+  processInput(argc, argv);
+  double hither = 5;
+  double translationDistance = .1;
+  Bool painters = True;
+  int  sign = 1 ;
+  int  action = 't' ;
+  int  index = 0 ; // index marks the current object
+  int  q = 't',k ;
+  double transformation   [DRAWING_DIMENSION+1][DRAWING_DIMENSION+1] ;
+  double transformationTwo[DRAWING_DIMENSION+1][DRAWING_DIMENSION+1] ;
+  while (1) {
+
+   makeIdentity (transformation) ;
+   
+   printf("%c\n", q);
+   if (q == ' ') {
+     exit(0) ;
+     
+   } else if (q == 'c') {
+     sign = -sign ;
+     
+   } else if (q == '[') {
+     translationDistance *= 10 ;
+     
+   }else if (q == ']') {
+     translationDistance /= 10 ;
+     
+   }else if (q == 't') {
+     action = q ;
+
+   } else if (q == 'r') {
+     action = q ;
+     
+   } else if (q == 'm') {
+     action = q ;
+     
+   } else if(q == 'p'){
+     painters = !painters;
+      
+   }else if(q == '-'){
+     concavity[index] = -concavity[index];
+      
+   }else if(q == 'l'){
+     action = q;
+      
+   }else if (('0' <= q) && (q <= '9')) {
+     k = q - '0' ;  
+     if (k < numObjects) { index = k ; }
+   }
+   /*clipping Controls */
+   else if(q == '['){
+     hither -= .1;
+   }else if(q == ']'){
+     hither += .1;
+   }
+   /*WASD Controls*/
+   else if ((q == 'w') && (action == 'm')) {
+     printf("Translate 'observer' by .2 z\n");
+     makeTranslation(transformationTwo, 0,0,-translationDistance);
+     matrixMultiply(transformation, transformationTwo, transformation);
+   }else if ((q == 'a') && (action == 'm')) {
+     printf("Translate 'observer' by -.2 x\n");
+     makeTranslation(transformationTwo, translationDistance,0,0);
+     matrixMultiply(transformation, transformationTwo, transformation);
+   }else if ((q == 's') && (action == 'm')) {
+     printf("Translate 'observer' by -.2 z\n");
+     makeTranslation(transformationTwo, 0,0,translationDistance);
+     matrixMultiply(transformation, transformationTwo, transformation);
+   }else if ((q == 'd') && (action == 'm')) {
+     printf("Translate 'observer' by .2 x\n");
+     makeTranslation(transformationTwo, -translationDistance,0,0);
+     matrixMultiply(transformation, transformationTwo, transformation);
+   }else if ((q == 'q') && (action == 'm')) {
+     printf("rotate by + 5 degrees y\n");
+     makeYRotationCS(transformationTwo,cosine(5), sine(5));
+     matrixMultiply(transformation, transformationTwo, transformation);
+   }else if ((q == 'e') && (action == 'm')) {
+     printf("rotate by - 5 degrees y\n");
+     makeYRotationCS(transformationTwo,cosine(-5), sine(-5));
+     matrixMultiply(transformation, transformationTwo, transformation);
+   }
+   
+   /*Light Source Motion*/
+   else if ((q == 'x') && (action == 'l')) {
+     printf("Translate Light by +.2 x\n");
+     lightLoc[0] += translationDistance*sign;
+   }else if ((q == 'y') && (action == 'l')) {
+     printf("Translate Light by +.2 y\n");
+     lightLoc[1] += translationDistance*sign;
+   }else if ((q == 'z') && (action == 'l')) {
+     printf("Translate Light by +.2 z\n");
+     lightLoc[2] += translationDistance*sign;
+   }
+   /* Translation*/
+   else if ((q == 'x') && (action == 't')) {
+     printf("Translate by +.2 x\n");
+     makeTranslation(transformationTwo, translationDistance*sign,0,0);
+     matrixMultiply(transformation, transformationTwo, transformation);
+   } else if ((q == 'y') && (action == 't')) {
+     printf("Translate by +.2 y\n");
+     makeTranslation(transformationTwo,0, translationDistance*sign,0);
+     matrixMultiply(transformation, transformationTwo, transformation);
+   } else if ((q == 'z') && (action == 't')) {
+     printf("Translate by +.2 z\n");
+     makeTranslation(transformationTwo,0,0,translationDistance*sign);
+     matrixMultiply(transformation, transformationTwo, transformation);
+   }
+   /*Rotation*/
+   else if ((q == 'x') && (action == 'r')) {
+     printf("rotate by + 5 degrees x\n");
+     makeTranslation(transformationTwo,
+		     -x[index][numPoints[index]],
+		     -y[index][numPoints[index]],
+		     -z[index][numPoints[index]]);
+     matrixMultiply(transformation, transformationTwo, transformation);
+      
+     makeXRotationCS(transformationTwo,cosine(5*sign), sine(5*sign));
+     matrixMultiply(transformation, transformationTwo, transformation) ;
+     makeTranslation(transformationTwo,
+		     x[index][numPoints[index]],
+		     y[index][numPoints[index]],
+		     z[index][numPoints[index]]);
+     matrixMultiply(transformation, transformationTwo, transformation);
+      
+   } else if ((q == 'y') && (action == 'r')) {
+     printf("rotate by + 5 degrees y\n");
+     makeTranslation(transformationTwo,
+		     -x[index][numPoints[index]],
+		     -y[index][numPoints[index]],
+		     -z[index][numPoints[index]]);
+     matrixMultiply(transformation, transformationTwo, transformation);
+      
+     makeYRotationCS(transformationTwo,cosine(5*sign), sine(5*sign));
+     matrixMultiply(transformation, transformationTwo, transformation) ;
+     makeTranslation(transformationTwo,
+		     x[index][numPoints[index]],
+		     y[index][numPoints[index]],
+		     z[index][numPoints[index]]);
+     matrixMultiply(transformation, transformationTwo, transformation);
+      
+   } else if ((q == 'z') && (action == 'r')) {
+     printf("rotate by + 5 degrees z\n");
+     makeTranslation(transformationTwo,
+		     -x[index][numPoints[index]],
+		     -y[index][numPoints[index]],
+		     -z[index][numPoints[index]]);
+     matrixMultiply(transformation, transformationTwo, transformation);
+      
+     makeZRotationCS(transformationTwo,cosine(5*sign), sine(5*sign));
+     matrixMultiply(transformation, transformationTwo, transformation) ;
+     makeTranslation(transformationTwo,
+		     x[index][numPoints[index]],
+		     y[index][numPoints[index]],
+		     z[index][numPoints[index]]);
+     matrixMultiply(transformation, transformationTwo, transformation);
+      
+   } else {
+     printf("no action\n") ;
+   }
+   if(action == 'm'){
+     for(int i = 0; i< numObjects; i++){
+       matrixMultiplyPoints (x[i],y[i],z[i],transformation,
+			     x[i],y[i],z[i],numpoints[i]+1) ;
+     }
+   }
+   else{
+     matrixMultiplyPoints (x[index],y[index],z[index],  transformation,
+			   x[index],y[index],z[index],numpoints[index]+1) ;
+   }
+   // the numpoints[index]+1 is because we have stored the center
+   // of the object at the arrays' end
+
+   G_rgb(0,0,0) ; 
+   G_clear() ;
+   G_rgb(0,0,1) ;
+   printf("first hither: %lf\n", hither);
+
+   printf("center at (%lf,%lf,%lf)\nhither:%lf\n",
+	  x[index][numPoints[index]],
+	  y[index][numPoints[index]],
+	  z[index][numPoints[index]],
+	  hither);
+   printf("hither: %lf\n", hither);
+
+   drawAllObjects(concavity, painters, hither) ;
+   G_rgb(1,1,0);
+   G_fill_circle(planarizePoint(lightLoc[0],lightLoc[2]),
+		 planarizePoint(lightLoc[1], lightLoc[2]),
+		 5);
+   q = G_wait_key() ;
+  }
+
+
+}

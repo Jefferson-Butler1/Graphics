@@ -1,0 +1,51 @@
+
+#include "FPToolkit.c"
+
+
+int window_size ;
+
+double gap = 20 ;
+
+
+Bool between(double target[2], double boundOne[2], double boundTwo[2]){
+  double minX = fmin(boundOne[0], boundTwo[0]);
+  double minY = fmin(boundOne[1], boundTwo[1]);
+  double maxX = fmax(boundOne[0], boundTwo[0]);
+  double maxY = fmax(boundOne[1], boundTwo[1]);
+  //printf("XBounds: %lf,%lf\nYBounds: %lf,%lf\nTarget %lf,%lf\n",minX,maxX,minY,maxY,target[0],target[1]);
+  return((target[0] <= maxX) &&
+	 (target[0] >= minX) &&
+	 (target[1] <= maxY) &&
+	 (target[1] >= minY));
+
+}
+
+
+int intersectFourPoints (double A[2], double B[2],
+                       double C[2], double D[2],
+                       double intersection[2]){
+  //get ax+by+c = 0 form
+  double firstLine [3], secondLine[3];
+  firstLine[0] = B[1]-A[1];
+  firstLine[1] = A[0]-B[0];
+  firstLine[2] = firstLine[0]*A[0]+firstLine[1]*A[1];
+  
+  secondLine[0] = D[1]-C[1];
+  secondLine[1] = C[0]-D[0];
+  secondLine[2] = secondLine[0]*C[0]+secondLine[1]*C[1];
+
+  double det = (firstLine[0] * secondLine[1] -
+		firstLine[1] * secondLine[0]);
+  //find intersection of lines
+  if(det == 0){
+    return 0;
+  }
+  
+  intersection[0] = (secondLine[1]*firstLine[2] -
+		     secondLine[2]*firstLine[1])/det;
+  
+  intersection[1] = (firstLine[0]*intersection[0] +
+		     firstLine[2])/-b1;
+  
+  return 1;
+}

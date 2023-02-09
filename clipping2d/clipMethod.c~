@@ -1,0 +1,143 @@
+#include "tools/inOuts.c"
+#include "tools/intersect.c"
+
+int printVector(double vector[]){
+  printf("<%lf,%lf>\n", vector[0], vector[1]);
+}
+
+int intersectLineWithPoly(double polyX[],double polyY[],
+			  int size,
+			  double pointOne[], double pointTwo[],
+			  double intersection[2]){
+
+  double polyPointOne[2], polyPointTwo[2];
+  G_rgb(1,1,1);
+  G_polygon(polyX, polyY, size);
+  G_rgb(1,0,0);
+  G_line(pointOne[0], pointOne[1], pointTwo[0], pointTwo[1]);
+
+  
+  for(int polyPointIndex = 0; polyPointIndex < size; polyPointIndex++){
+    
+    polyPointOne[0] = polyX[polyPointIndex];
+    polyPointOne[1] = polyY[polyPointIndex];
+    polyPointTwo[0] = polyX[(polyPointIndex+1)%size];
+    polyPointTwo[1] = polyY[(polyPointIndex+1)%size];
+    intersectFourPoints(polyPointOne, polyPointTwo,
+			pointOne, pointTwo, intersection);
+    if(between(intersection, pointOne, pointTwo)&&
+       between(intersection, polyPointOne, polyPointTwo)){
+      return 1;
+    }
+  }
+  
+  double A[2] = {1,1};
+  double B[2] = {4,4};
+  double C[2] = {1,8};
+  double D[2] = {2,4};
+  
+  intersectFourPoints(A,B,C,D,intersection);
+  return 0;
+			
+}
+
+int clipMethod(int index, int numpoly,
+	       double xPointsPoly[],
+	       double yPointsPoly[],
+	       double xPointsClip[],
+	       double yPointsClip[],
+	       double xNew[],
+	       double yNew[],
+	       int polySize,
+	       int clipSize){
+  int sizeNew = 0;
+  if(clipSize < 3){
+    for(int i = 0; i < polySize; i++){
+      xNew[i] = xPointsPoly[i];
+      yNew[i] = yPointsPoly[i];
+    }
+    return polySize;
+  }
+  double polyPointOne[2], polyPointTwo[2],
+    intersectionWithClip[2];
+  Bool lastHadIntersect = False;
+  for(int polyPointIndex = 0;
+      polyPointIndex < polySize;
+      polyPointIndex++){
+    
+    polyPointOne[0] = xPointsPoly[polyPointIndex];
+    polyPointOne[1] = yPointsPoly[polyPointIndex];
+    polyPointTwo[0] = xPointsPoly[(polyPointIndex+1)%polySize];
+    polyPointTwo[1] = yPointsPoly[(polyPointIndex+1)%polySize];
+
+    /* test if points one and two are inside 
+       the clipping window */
+    Bool pointOneInClip = inOut(xPointsClip,yPointsClip,
+				clipSize, polyPointOne);
+    Bool pointTwoInClip = inOut(xPointsClip,yPointsClip,
+				clipSize, polyPointTwo);
+
+    /* logic tree:
+       if both points are in the clipping window:
+            add the second to newPoints and increment size
+       if the first one is good, the second on is bad:
+            add the first , 
+	    add the intersection of first->second and clipping window
+       if the first is bad, second good:
+            add the intersection of first->second and clipping window
+	    add the second 
+       if both are bad:
+            add nothing 
+    */
+    printf("\npointOne: %d\npointTwo: %d\n",
+	   pointOneInClip, pointTwoInClip);
+    
+    if(pointOneInClip && pointTwoInClip){
+      printf("first: good\nsecond:good\n");
+
+      /*functional*/
+      xNew[sizeNew] = polyPointTwo[0];
+      yNew[sizeNew] = polyPointTwo[1];
+      sizeNew++;
+      
+    }else if(pointOneInClip && !pointTwoInClip){
+      lastHadIntersect != lastHadIntersect;
+      printf("first: good\nsecond:bad\n");
+      intersectLineWithPoly(xPointsClip,yPointsClip,
+			    clipSize,
+			    polyPointOne, polyPointTwo,
+			    intersectionWithClip);
+      
+      xNew[sizeNew] = polyPointOne[0];
+      yNew[sizeNew] = polyPointOne[1];
+      sizeNew++;
+      xNew[sizeNew] = intersectionWithClip[0];
+      yNew[sizeNew] = intersectionWithClip[1];
+      sizeNew++;
+      
+    }else if(!pointOneInClip && pointTwoInClip){
+      lastHadIntersect != lastHadIntersect;
+      
+      printf("first: bad\nsecond:good\n");
+
+      intersectLineWithPoly(xPointsClip,yPointsClip,
+			    clipSize,
+			    polyPointOne, polyPointTwo,
+			    intersectionWithClip);
+      xNew[sizeNew] = intersectionWithClip[0];
+      yNew[sizeNew] = intersectionWithClip[1];
+      sizeNew++;
+      xNew[sizeNew] = polyPointTwo[0];
+      yNew[sizeNew] = polyPointTwo[1];
+      sizeNew++;
+      
+    }else if(!pointOneInClip && !pointTwoInClip){
+      printf("first: bad\nsecond:bad\n");
+
+      /*functional*/
+    }
+    
+    
+  }
+  return sizeNew;
+}

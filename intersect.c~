@@ -1,0 +1,28 @@
+
+#include "matrixToolsThreeDee.c"
+
+
+
+int intersect(double plane[],
+		       double linePoint[], double lineVector[],
+		       double intersection[]){
+
+  vectorPrint(plane);
+  printf("D vlaues = %lf\n", plane[3]);
+  vectorPrint(linePoint);
+  vectorPrint(lineVector);
+
+  double var, constantPiece, t;
+  var = 0;
+  constantPiece = plane[3];
+  for(int i = 0; i < 3; i++){
+    constantPiece += plane[i] * linePoint[i];
+    var += plane[i] * lineVector[i];
+  }
+  t = constantPiece / (-1*var);
+  printf("T = %lf\n", t);
+  for(int i = 0; i < 3; i++){
+    intersection[i] = linePoint[i] + t*lineVector[i];
+  }
+  return 1;
+}

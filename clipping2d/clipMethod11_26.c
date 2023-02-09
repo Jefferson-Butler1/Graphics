@@ -1,0 +1,211 @@
+//#include "tools/intersect.c"
+#include "tools/inOuts.c"
+
+void get_intersection(double new[2],
+		      double a1[2], double a2[2],
+		      double b1[2], double b2[2]){
+  //NEED TO REMOVE DIVIDE BY ZERO ERRORS
+  // first line
+  double rise1 = a2[1] - a1[1];
+  double run1 = a2[0] - a1[0];
+	
+  // this is really nasty, change this!!
+  if(run1 == 0){run1 = 0.00001;}
+	
+  double slope1 = rise1/run1;
+  double intercept1 = a1[1]- slope1 * a1[0];
+	
+  // second line
+  double rise2 = b2[1] - b1[1];
+  double run2 = b2[0] - b1[0];
+	
+  if(run2 == 0){run2 = 0.00001;}
+	
+  double slope2 = rise2/run2;
+  double intercept2 = b1[1] - slope2 * b1[0];
+	
+  new[0] = (intercept2 - intercept1) / (slope1 - slope2);
+  new[1] = slope1 * new[0] + intercept1;
+
+}
+int is_outside(double window1[2], double window2[2],
+	       double P[2],
+	       double comX, double comY){
+  if(window1[0] == window2[0]){
+    if(P[0] > window1[0] && P[0] < window1[0]){
+      //printf("code 1\n");
+      return 1;
+    }
+    else if(P[0] < window1[0] && P[0] > window1[0]){
+      //printf("code 2\n");
+      return 1;
+    }
+  }
+	
+  else{
+    double slope = (window1[1] - window2[1])/(window1[0] - window2[0]);
+    double y_inter = window1[1] - slope * window1[0];	
+    if(P[0]*slope + y_inter > P[1] && comX*slope + y_inter < comY){
+      // if P is below the line
+      //printf("code 3\n");
+      return 1;
+    } else if(P[0]*slope + y_inter < P[1] &&
+	      comX * slope + y_inter > comY){
+      // P is above the line
+      //printf("code 4\n");
+      return 1;}
+  }
+  return 0;
+	
+}
+int clipAgainstLine(double xNew[], double yNew[],
+		    double clipPointOne[2], double clipPointTwo[2],
+		    double xPointsPoly[], double yPointsPoly[],
+		    int polySize,
+		    double windowCenter[2]){
+  //make it safe
+  double xTemp[polySize], yTemp[polySize];
+  int newSize = 0, one = 0, two = 0;
+  
+  for(int i = 0; i < polySize; i++){
+    xTemp[i] = xPointsPoly[i];
+    yTemp[i] = yPointsPoly[i];
+  }
+  //loop through all poly points and compare to clip line
+  double polyPointOne[2], polyPointTwo[2], intersection[2];
+  for(int polyPointIndex = 0;
+      polyPointIndex < polySize;
+      polyPointIndex++){
+    printf("polyPointIndex: %d\n", polyPointIndex);
+    polyPointOne[0] = xPointsPoly[polyPointIndex];
+    polyPointOne[1] = yPointsPoly[polyPointIndex];
+    polyPointTwo[0] = xPointsPoly[(polyPointIndex+1)%polySize];
+    polyPointTwo[1] = yPointsPoly[(polyPointIndex+1)%polySize];
+    /* isOUtside is the pace where itd doesnt work and Im going to loose my gfiucking midn over this  */
+    one = !is_outside(clipPointOne, clipPointTwo,
+			 polyPointOne,
+			 windowCenter[0], windowCenter[1]);
+    two = !is_outside(clipPointOne, clipPointTwo,
+			 polyPointTwo,
+			 windowCenter[0], windowCenter[1]);
+    printf("One: %d, Two: %d\n", one, two);
+    if(one && two){
+      printf("good to good newSize:%d \n", newSize);
+      printf("Adding a new point: <%lf,%lf>\n",
+	     polyPointOne[0], polyPointOne[1]);
+      //G_wait_key();
+      xNew[newSize] = polyPointOne[0];
+      yNew[newSize] = polyPointOne[1];
+      newSize++;
+    }
+    else if(one && !two){
+      printf("good to bad newSize:%d \n", newSize);
+
+      printf("Adding a new point: <%lf,%lf>\n",
+	     polyPointOne[0], polyPointOne[1]);
+      //G_wait_key();
+      xNew[newSize] = polyPointOne[0];
+      yNew[newSize] = polyPointOne[1];
+      newSize++;
+      get_intersection(intersection,
+		       polyPointOne, polyPointTwo,
+		       clipPointOne, clipPointTwo);
+      /* intersectFourPoints(polyPointOne, polyPointTwo, */
+      /* 			  clipPointOne, clipPointTwo, */
+      /* 			  intersection); */
+      printf("Adding a new point: <%lf,%lf>\n",
+	     intersection[0], intersection[1]);
+      //G_wait_key();
+      xNew[newSize] = intersection[0];
+      yNew[newSize] = intersection[1];
+      newSize++;
+    }
+    else if(!one && two){
+      printf("bad to good newSize:%d \n", newSize);
+
+      get_intersection(intersection,
+		       polyPointOne, polyPointTwo,
+		       clipPointOne, clipPointTwo);
+
+      /* intersectFourPoints(polyPointOne, polyPointTwo, */
+      /* 			  clipPointOne, clipPointTwo, */
+      /* 			  intersection); */
+      printf("Adding a new point: <%lf,%lf>\n",
+	     intersection[0], intersection[1]);
+      //G_wait_key();
+      xNew[newSize] = intersection[0];
+      yNew[newSize] = intersection[1];
+      newSize++;
+      /* printf("Adding a new point: <%lf,%lf>\n", */
+      /* 	     polyPointOne[0], polyPointOne[1]); */
+      /* G_wait_key(); */
+      /* xNew[newSize] = polyPointTwo[0]; */
+      /* yNew[newSize] = polyPointTwo[1]; */
+      /* newSize++; */
+
+    }
+  }
+  return newSize;
+}
+		    
+
+int clipMethod(double xPointsPoly[], double yPointsPoly[],
+	       int polySize,
+	       double xPointsClip[],double yPointsClip[],
+	       int clipPolySize){
+  double xNew[1000], yNew[1000];
+  if(clipPolySize < 3){
+    for(int i = 0; i < polySize; i++){
+      xNew[i] = xPointsPoly[i];
+      yNew[i] = yPointsPoly[i];
+    }
+    return polySize;
+  }
+  /*uses xPointsPoly, yPointsPoly, 
+    xPointsClip, yPointsClip,
+    polySize, clipSize
+  */
+  double xPointsNew[100], yPointsNew[100];
+  int newSize = polySize;
+
+  //center of window
+  double windowCenter[2] = {0,0};
+  for(int i = 0; i < clipPolySize; i++){
+    windowCenter[0] += xPointsClip[i];
+    windowCenter[1] += yPointsClip[i];
+  }
+  windowCenter[0] /= clipPolySize;
+  windowCenter[1] /= clipPolySize;
+
+  
+  //loop through clip lines
+  //could be edited to have case: 1==0 outside loop
+  double clipPointOne[2], clipPointTwo[2];
+  for(int i = 0; i < clipPolySize; i++){
+    clipPointOne[0] = xPointsClip[i];
+    clipPointOne[1] = yPointsClip[i];
+    clipPointTwo[0] = xPointsClip[(i+1)%clipPolySize];
+    clipPointTwo[1] = yPointsClip[(i+1)%clipPolySize];
+
+    if( i == 0){
+      newSize = clipAgainstLine(xNew, yNew,
+				clipPointOne, clipPointTwo,
+				xPointsPoly, yPointsPoly,
+				newSize,
+				windowCenter);
+    }
+    else{
+      newSize = clipAgainstLine(xNew, yNew,
+				clipPointOne, clipPointTwo,
+				xNew, yNew,
+				newSize,
+				windowCenter);
+    }
+  }
+  for( int i = 0; i< newSize; i++){
+    xPointsPoly[i] = xNew[i];
+    yPointsPoly[i] = yNew[i];
+  }
+  return newSize;
+}
+  

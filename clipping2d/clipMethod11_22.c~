@@ -1,0 +1,60 @@
+#include "FPToolkit.c"
+
+int getCenter(double x[], double y[], int numPoints, double center[]){
+  double sumX, sumY;
+  sumX = sumY = 0;
+  for(int i = 0; i < numPoints; i++){
+    sumX += x[i];
+    sumY += y[i];
+  }
+  center[0] = sumX / numPoints;
+  center[1] = sumY / numPoints;
+  return 0;
+}
+
+int clipAgainstLine(double xPointsPoly[], double yPointsPoly[],
+		    int polySize,
+		    double clipPointOne[], double clipPointTwo[],
+		    double clipCenter[]){
+  for(int polyPointIndex = 0;
+      polyPointIndex < polySize;
+      polyPointIndex++){
+
+  }
+  return polySize;
+}
+
+int clipMethod(int index, int numpoly,
+	       double xPointsPoly[],
+	       double yPointsPoly[],
+	       double xPointsClip[],
+	       double yPointsClip[],
+	       double xNew[],
+	       double yNew[],
+	       int polySize,
+	       int clipSize){
+  int sizeNew = 0;
+  if(clipSize < 3){
+    for(int i = 0; i < polySize; i++){
+      xNew[i] = xPointsPoly[i];
+      yNew[i] = yPointsPoly[i];
+    }
+    return polySize;
+  }
+  double clipPointOne[2], clipPointTwo[2],
+    intersectionWithClip[2];
+  for(int clipPointIndex = 0; clipPointIndex < clipSize; clipPointIndex++){
+    clipPointOne[0] = xPointsClip[clipPointIndex];
+    clipPointOne[1] = yPointsClip[clipPointIndex];
+    clipPointTwo[0] = xPointsClip[(clipPointIndex+1)%clipSize];
+    clipPointTwo[1] = yPointsClip[(clipPointIndex+1)%clipSize];
+    
+    /*Aislinn's name for the center of the clipping poly */
+    double ghfbfrtrf [2];
+    getCenter(xPointsClip, yPointsClip, clipSize, ghfbfrtrf);
+    
+    polySize = clipAgainstLine(xPointsPoly, yPointsPoly,polySize,
+			       clipPointOne, clipPointTwo ,ghfbfrtrf);
+  }
+  return polySize;
+}
